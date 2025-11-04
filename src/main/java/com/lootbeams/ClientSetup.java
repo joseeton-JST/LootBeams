@@ -90,55 +90,45 @@ public class ClientSetup {
                                                 if(tooltipLines.isEmpty()) {
                                                         return;
                                                 }
-                                                if(!shouldRenderAdvancedTooltip(itemEntity.getItem(), tooltipLines)) {
-                                                        return;
+                                                boolean advancedTooltipAllowed = shouldRenderAdvancedTooltip(itemEntity.getItem(), tooltipLines);
+                                                List<Component> condensedTooltip = new ArrayList<>();
+                                                condensedTooltip.add(tooltipLines.get(0));
+                                                if(advancedTooltipAllowed && Configuration.RENDER_SECONDARY_RARITY_TOOLTIP.get()) {
+                                                        Component rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(itemEntity.getItem().getDisplayName().getStyle());
+                                                        if(ModList.get().isLoaded("apotheosis") && ApotheosisCompat.isApotheosisItem(itemEntity.getItem())) {
+                                                                rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(s -> s.withColor(ApotheosisCompat.getRarityColor(itemEntity.getItem())));
+                                                        }
+                                                        condensedTooltip.add(rarityComponent);
                                                 }
+                                                List<Component> singleLineTooltip = List.of(condensedTooltip.get(0));
+                                                boolean showAdvancedTooltip = advancedTooltipAllowed && (!Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() || player.isCrouching());
+                                                boolean useCombinedCondensed = !showAdvancedTooltip && advancedTooltipAllowed && Configuration.COMBINE_NAME_AND_RARITY.get() && condensedTooltip.size() > 1;
+                                                List<Component> displayedLines = showAdvancedTooltip ? tooltipLines : (useCombinedCondensed ? condensedTooltip : singleLineTooltip);
                                                 if(Configuration.WORLDSPACE_TOOLTIPS.get()){
                                                         Vec3 tooltipWorldPos = itemEntity.position().add(
                                                                         0,
                                                                                         Math.min(1D, Minecraft.getInstance().player.distanceToSqr(itemEntity) * 0.025D)
-                                                                                        + Configuration.NAMETAG_Y_OFFSET.get() +
-                                                                                        tooltipLines.size()/100f,
+                                                                                        + Configuration.NAMETAG_Y_OFFSET.get() + displayedLines.size()/100f,
                                                                         0);
                                                         Vector3f desiredScreenSpacePos = worldToScreenSpace(tooltipWorldPos, event.getPartialTick());
-                                                        desiredScreenSpacePos = new Vector3f(Mth.clamp(desiredScreenSpacePos.x(), 0, event.getWindow().getGuiScaledWidth()), Mth.clamp(desiredScreenSpacePos.y(), 0, event.getWindow().getGuiScaledHeight() - (Minecraft.getInstance().font.lineHeight * tooltipLines.size())), desiredScreenSpacePos.z());
-                                                        Component longestLine =
-                                                                        tooltipLines.stream().max((a, b) -> Minecraft.getInstance().font.width(a) - Minecraft.getInstance().font.width(b))
-                                                                                        .orElse(tooltipLines.get(0));
-							if(Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() && !player.isCrouching()) longestLine = tooltipLines.get(0);
-							x = (int)desiredScreenSpacePos.x() - 10 - Minecraft.getInstance().font.width(longestLine) / 2;
-							rarityX = (int)desiredScreenSpacePos.x() - 12 - Minecraft.getInstance().font.width(LootBeamRenderer.getRarity(itemEntity.getItem())) / 2;
-							y = (int)desiredScreenSpacePos.y();
-						}
-						int guiScale = Minecraft.getInstance().options.guiScale().get();
-						if(tooltipLines.size() > 6) {
-							Minecraft.getInstance().options.guiScale().set(1);
-						}
-                                                if((Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() && player.isCrouching()) || !Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get()) {
-                                                        event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, itemEntity.getItem(), x, y);
-                                                } else {
-                                                        List<Component> condensedTooltip = new ArrayList<>();
-                                                        condensedTooltip.add(tooltipLines.get(0));
-                                                        if(Configuration.RENDER_SECONDARY_RARITY_TOOLTIP.get()) {
-                                                                Component rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(itemEntity.getItem().getDisplayName().getStyle());
-                                                                if(ModList.get().isLoaded("apotheosis") && ApotheosisCompat.isApotheosisItem(itemEntity.getItem())) {
-                                                                        rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(s -> s.withColor(ApotheosisCompat.getRarityColor(itemEntity.getItem())));
-                                                                }
-                                                                condensedTooltip.add(rarityComponent);
-                                                        }
-
-                                                        if(Configuration.COMBINE_NAME_AND_RARITY.get() && condensedTooltip.size() > 1) {
-                                                                event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, condensedTooltip, itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
-                                                        } else {
-                                                                event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, List.of(condensedTooltip.get(0)), itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
-                                                        }
+                                                        desiredScreenSpacePos = new Vector3f(Mth.clamp(desiredScreenSpacePos.x(), 0, event.getWindow().getGuiScaledWidth()), Mth.clamp(desiredScreenSpacePos.y(), 0, event.getWindow().getGuiScaledHeight() - (Minecraft.getInstance().font.lineHeight * displayedLines.size())), desiredScreenSpacePos.z());
+                                                        Component longestLine = displayedLines.stream().max((a, b) -> Minecraft.getInstance().font.width(a) - Minecraft.getInstance().font.width(b)).orElse(tooltipLines.get(0));
+                                                        x = (int)desiredScreenSpacePos.x() - 10 - Minecraft.getInstance().font.width(longestLine) / 2;
+                                                        rarityX = (int)desiredScreenSpacePos.x() - 12 - Minecraft.getInstance().font.width(LootBeamRenderer.getRarity(itemEntity.getItem())) / 2;
+                                                        y = (int)desiredScreenSpacePos.y();
                                                 }
-						Minecraft.getInstance().options.guiScale().set(guiScale);
-					}
-				}
-			}
-		}
-	}
+                                                int guiScale = Minecraft.getInstance().options.guiScale().get();
+                                                if(showAdvancedTooltip && tooltipLines.size() > 6) {
+                                                        Minecraft.getInstance().options.guiScale().set(1);
+                                                }
+                                                if(showAdvancedTooltip) {
+                                                        event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, itemEntity.getItem(), x, y);
+                                                } else if(useCombinedCondensed) {
+                                                        event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, condensedTooltip, itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
+                                                } else {
+                                                        event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, singleLineTooltip, itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
+                                                }
+                                                Minecraft.getInstance().options.guiScale().set(guiScale);
 
 	public static Vector3f worldToScreenSpace(Vec3 pos, float partialTicks) {
 		Minecraft mc = Minecraft.getInstance();
@@ -293,8 +283,8 @@ public class ClientSetup {
         }
 
         public static boolean shouldRenderAdvancedTooltip(ItemStack stack, List<Component> tooltipLines) {
-                List<String> itemWhitelist = Configuration.ADVANCED_TOOLTIP_ITEM_WHITELIST.get();
-                List<String> rarityWhitelist = Configuration.ADVANCED_TOOLTIP_RARITY_WHITELIST.get();
+                List<String> itemWhitelist = Configuration.getAdvancedTooltipItemWhitelistEntries();
+                List<String> rarityWhitelist = Configuration.getAdvancedTooltipRarityWhitelistEntries();
 
                 boolean restrictItems = !itemWhitelist.isEmpty();
                 boolean restrictRarities = !rarityWhitelist.isEmpty();
