@@ -129,8 +129,13 @@ public class ClientSetup {
                                                         event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, singleLineTooltip, itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
                                                 }
                                                 Minecraft.getInstance().options.guiScale().set(guiScale);
+                                        }
+                                }
+                        }
+                }
+        }
 
-	public static Vector3f worldToScreenSpace(Vec3 pos, float partialTicks) {
+        public static Vector3f worldToScreenSpace(Vec3 pos, float partialTicks) {
 		Minecraft mc = Minecraft.getInstance();
 		Camera camera = mc.gameRenderer.getMainCamera();
 		Vec3 cameraPosition = camera.getPosition();
