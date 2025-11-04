@@ -6,8 +6,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.joml.Vector3d;
 
@@ -16,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber(modid = LootBeams.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Configuration {
 
 	public static ForgeConfigSpec CLIENT_CONFIG;
@@ -192,6 +196,32 @@ public class Configuration {
 
 		CLIENT_CONFIG = clientBuilder.build();
 	}
+
+        @SubscribeEvent
+        public static void onConfigLoaded(ModConfigEvent.Loading event) {
+                if (event.getConfig().getSpec() != CLIENT_CONFIG) {
+                        return;
+                }
+
+                applyClientRuntimeChanges();
+        }
+
+        @SubscribeEvent
+        public static void onConfigReloaded(ModConfigEvent.Reloading event) {
+                if (event.getConfig().getSpec() != CLIENT_CONFIG) {
+                        return;
+                }
+
+                applyClientRuntimeChanges();
+        }
+
+        private static void applyClientRuntimeChanges() {
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
+                        LootBeamRenderer.refreshRenderTypes();
+                        LootBeamRenderer.TOOLTIP_CACHE.clear();
+                        ClientSetup.delayedRenders.clear();
+                });
+        }
 
 	public static Color getColorFromItemOverrides(Item i) {
 		List<String> overrides = COLOR_OVERRIDES.get();
