@@ -298,22 +298,19 @@ public class ClientSetup {
                         return true;
                 }
 
-                if (restrictItems && isItemInRegistryList(itemWhitelist, stack.getItem())) {
-                        return true;
-                }
+                boolean itemAllowed = !restrictItems || isItemInRegistryList(itemWhitelist, stack.getItem());
+                boolean rarityAllowed = true;
 
                 if (restrictRarities) {
+                        rarityAllowed = false;
                         String tooltipRarity = tooltipLines.size() > 1 ? tooltipLines.get(1).getString() : "";
-                        if (matchesRarityWhitelist(rarityWhitelist, tooltipRarity)) {
-                                return true;
-                        }
-
-                        if (matchesRarityWhitelist(rarityWhitelist, LootBeamRenderer.getRarity(stack))) {
-                                return true;
+                        if (matchesRarityWhitelist(rarityWhitelist, tooltipRarity)
+                                        || matchesRarityWhitelist(rarityWhitelist, LootBeamRenderer.getRarity(stack))) {
+                                rarityAllowed = true;
                         }
                 }
 
-                return false;
+                return itemAllowed && rarityAllowed;
         }
 
         private static boolean matchesRarityWhitelist(List<String> whitelist, String candidate) {
@@ -349,21 +346,25 @@ public class ClientSetup {
                         return false;
                 }
 
-		for (String id : registryNames.stream().filter(s -> !s.isEmpty()).toList()) {
-			if (!id.contains(":") && ForgeRegistries.ITEMS.getKey(item).getNamespace().equals(id)) {
-				return true;
-			}
+                ResourceLocation itemKey = ForgeRegistries.ITEMS.getKey(item);
+                if (itemKey == null) {
+                        return false;
+                }
+
+                for (String id : registryNames.stream().filter(s -> !s.isEmpty()).toList()) {
+                        if (!id.contains(":") && itemKey.getNamespace().equals(id)) {
+                                return true;
+                        }
 
                         ResourceLocation itemResource = ResourceLocation.tryParse(id);
                         if (itemResource != null) {
-                                Item registryItem = ForgeRegistries.ITEMS.getValue(itemResource);
-                                if (registryItem != null && registryItem.asItem() == item.asItem()) {
+                                if (itemResource.equals(itemKey)) {
                                         return true;
                                 }
                         }
                 }
 
-		return false;
-	}
+                return false;
+        }
 
 }
