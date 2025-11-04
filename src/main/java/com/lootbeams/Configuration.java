@@ -48,8 +48,11 @@ public class Configuration {
 
 	public static ForgeConfigSpec.BooleanValue PARTICLES;
 
-	public static ForgeConfigSpec.BooleanValue ADVANCED_TOOLTIPS;
-	public static ForgeConfigSpec.BooleanValue WORLDSPACE_TOOLTIPS;
+        public static ForgeConfigSpec.BooleanValue ADVANCED_TOOLTIPS;
+        public static ForgeConfigSpec.BooleanValue RENDER_SECONDARY_RARITY_TOOLTIP;
+        public static ForgeConfigSpec.ConfigValue<List<String>> ADVANCED_TOOLTIP_ITEM_WHITELIST;
+        public static ForgeConfigSpec.ConfigValue<List<String>> ADVANCED_TOOLTIP_RARITY_WHITELIST;
+        public static ForgeConfigSpec.BooleanValue WORLDSPACE_TOOLTIPS;
 	public static ForgeConfigSpec.BooleanValue BORDERS;
 	public static ForgeConfigSpec.BooleanValue RENDER_NAMETAGS;
 	public static ForgeConfigSpec.BooleanValue RENDER_NAMETAGS_ONLOOK;
@@ -151,8 +154,11 @@ public class Configuration {
 		clientBuilder.pop();
 
 		clientBuilder.comment("Item nametags").push("Nametags");
-		ADVANCED_TOOLTIPS = clientBuilder.comment("If vanilla tooltips should be rendered on items in world.").define("advanced_tooltips", true);
-		WORLDSPACE_TOOLTIPS = clientBuilder.comment("If tooltips should be rendered in world.").define("worldspace_tooltips", true);
+                ADVANCED_TOOLTIPS = clientBuilder.comment("If vanilla tooltips should be rendered on items in world.").define("advanced_tooltips", true);
+                RENDER_SECONDARY_RARITY_TOOLTIP = clientBuilder.comment("If the condensed tooltip should include a second line showing the item's rarity.").define("render_secondary_rarity_tooltip", true);
+                ADVANCED_TOOLTIP_ITEM_WHITELIST = clientBuilder.comment("Restrict advanced tooltips to specific items. Accepts registry names or mod ids. Leave empty to allow all items.").define("advanced_tooltip_item_whitelist", new ArrayList<>());
+                ADVANCED_TOOLTIP_RARITY_WHITELIST = clientBuilder.comment("Restrict advanced tooltips to specific rarities. Matches the text shown on the tooltip line below the item name. Leave empty to allow all rarities.").define("advanced_tooltip_rarity_whitelist", new ArrayList<>());
+                WORLDSPACE_TOOLTIPS = clientBuilder.comment("If tooltips should be rendered in world.").define("worldspace_tooltips", true);
 		BORDERS = clientBuilder.comment("Render nametags as bordered. Set to false for flat nametag with background.").define("borders", true);
 		RENDER_NAMETAGS = clientBuilder.comment("If Item nametags should be rendered.").define("render_nametags", true);
 		RENDER_NAMETAGS_ONLOOK = clientBuilder.comment("If Item nametags should be rendered when looking at items.").define("render_nametags_onlook", true);

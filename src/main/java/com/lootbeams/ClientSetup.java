@@ -17,6 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.util.StringUtil;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -25,6 +26,7 @@ import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.TooltipFlag;
@@ -84,19 +86,25 @@ public class ClientSetup {
 						int x = event.getWindow().getGuiScaledWidth() / 2;
 						int rarityX = x;
 						int y = event.getWindow().getGuiScaledHeight() / 2;
-						List<Component> tooltipLines = Screen.getTooltipFromItem(Minecraft.getInstance(), itemEntity.getItem());
-						if(Configuration.WORLDSPACE_TOOLTIPS.get()){
-							Vec3 tooltipWorldPos = itemEntity.position().add(
-									0,
-									Math.min(1D, Minecraft.getInstance().player.distanceToSqr(itemEntity) * 0.025D)
-											+ Configuration.NAMETAG_Y_OFFSET.get() +
-											(Screen.getTooltipFromItem(Minecraft.getInstance(), itemEntity.getItem()).size())/100f,
-									0);
-							Vector3f desiredScreenSpacePos = worldToScreenSpace(tooltipWorldPos, event.getPartialTick());
-							desiredScreenSpacePos = new Vector3f(Mth.clamp(desiredScreenSpacePos.x(), 0, event.getWindow().getGuiScaledWidth()), Mth.clamp(desiredScreenSpacePos.y(), 0, event.getWindow().getGuiScaledHeight() - (Minecraft.getInstance().font.lineHeight * Screen.getTooltipFromItem(Minecraft.getInstance(), itemEntity.getItem()).size())), desiredScreenSpacePos.z());
-							Component longestLine =
-									tooltipLines.stream().max((a, b) -> Minecraft.getInstance().font.width(a) - Minecraft.getInstance().font.width(b))
-											.orElse(Screen.getTooltipFromItem(Minecraft.getInstance(), itemEntity.getItem()).get(0));
+                                                List<Component> tooltipLines = Screen.getTooltipFromItem(Minecraft.getInstance(), itemEntity.getItem());
+                                                if(tooltipLines.isEmpty()) {
+                                                        return;
+                                                }
+                                                if(!shouldRenderAdvancedTooltip(itemEntity.getItem(), tooltipLines)) {
+                                                        return;
+                                                }
+                                                if(Configuration.WORLDSPACE_TOOLTIPS.get()){
+                                                        Vec3 tooltipWorldPos = itemEntity.position().add(
+                                                                        0,
+                                                                                        Math.min(1D, Minecraft.getInstance().player.distanceToSqr(itemEntity) * 0.025D)
+                                                                                        + Configuration.NAMETAG_Y_OFFSET.get() +
+                                                                                        tooltipLines.size()/100f,
+                                                                        0);
+                                                        Vector3f desiredScreenSpacePos = worldToScreenSpace(tooltipWorldPos, event.getPartialTick());
+                                                        desiredScreenSpacePos = new Vector3f(Mth.clamp(desiredScreenSpacePos.x(), 0, event.getWindow().getGuiScaledWidth()), Mth.clamp(desiredScreenSpacePos.y(), 0, event.getWindow().getGuiScaledHeight() - (Minecraft.getInstance().font.lineHeight * tooltipLines.size())), desiredScreenSpacePos.z());
+                                                        Component longestLine =
+                                                                        tooltipLines.stream().max((a, b) -> Minecraft.getInstance().font.width(a) - Minecraft.getInstance().font.width(b))
+                                                                                        .orElse(tooltipLines.get(0));
 							if(Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() && !player.isCrouching()) longestLine = tooltipLines.get(0);
 							x = (int)desiredScreenSpacePos.x() - 10 - Minecraft.getInstance().font.width(longestLine) / 2;
 							rarityX = (int)desiredScreenSpacePos.x() - 12 - Minecraft.getInstance().font.width(LootBeamRenderer.getRarity(itemEntity.getItem())) / 2;
@@ -106,21 +114,25 @@ public class ClientSetup {
 						if(tooltipLines.size() > 6) {
 							Minecraft.getInstance().options.guiScale().set(1);
 						}
-						if((Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() && player.isCrouching()) || !Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get()) {
-							event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, itemEntity.getItem(), x, y);
-						} else {
-							tooltipLines = List.of(tooltipLines.get(0), Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(itemEntity.getItem().getDisplayName().getStyle()));
-							if(ModList.get().isLoaded("apotheosis")) {
-								if(ApotheosisCompat.isApotheosisItem(itemEntity.getItem())) {
-									tooltipLines = List.of(tooltipLines.get(0), Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(s -> s.withColor(ApotheosisCompat.getRarityColor(itemEntity.getItem()))));
-								}
-							}
-							if(Configuration.COMBINE_NAME_AND_RARITY.get()) {
-								event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, tooltipLines, itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
-							} else {
-								event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, List.of(tooltipLines.get(0)), itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
-							}
-						}
+                                                if((Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() && player.isCrouching()) || !Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get()) {
+                                                        event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, itemEntity.getItem(), x, y);
+                                                } else {
+                                                        List<Component> condensedTooltip = new ArrayList<>();
+                                                        condensedTooltip.add(tooltipLines.get(0));
+                                                        if(Configuration.RENDER_SECONDARY_RARITY_TOOLTIP.get()) {
+                                                                Component rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(itemEntity.getItem().getDisplayName().getStyle());
+                                                                if(ModList.get().isLoaded("apotheosis") && ApotheosisCompat.isApotheosisItem(itemEntity.getItem())) {
+                                                                        rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(s -> s.withColor(ApotheosisCompat.getRarityColor(itemEntity.getItem())));
+                                                                }
+                                                                condensedTooltip.add(rarityComponent);
+                                                        }
+
+                                                        if(Configuration.COMBINE_NAME_AND_RARITY.get() && condensedTooltip.size() > 1) {
+                                                                event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, condensedTooltip, itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
+                                                        } else {
+                                                                event.getGuiGraphics().renderTooltip(Minecraft.getInstance().font, List.of(condensedTooltip.get(0)), itemEntity.getItem().getTooltipImage(), itemEntity.getItem(), x, y);
+                                                        }
+                                                }
 						Minecraft.getInstance().options.guiScale().set(guiScale);
 					}
 				}
@@ -276,25 +288,85 @@ public class ClientSetup {
 		}
 	}
 
-	public static boolean isEquipmentItem(Item item) {
-		return item instanceof TieredItem || item instanceof ArmorItem || item instanceof ShieldItem || item instanceof BowItem || item instanceof CrossbowItem;
-	}
+        public static boolean isEquipmentItem(Item item) {
+                return item instanceof TieredItem || item instanceof ArmorItem || item instanceof ShieldItem || item instanceof BowItem || item instanceof CrossbowItem;
+        }
 
-	private static boolean isItemInRegistryList(List<String> registryNames, Item item) {
-		if (registryNames.isEmpty()) {
-			return false;
-		}
+        public static boolean shouldRenderAdvancedTooltip(ItemStack stack, List<Component> tooltipLines) {
+                List<String> itemWhitelist = Configuration.ADVANCED_TOOLTIP_ITEM_WHITELIST.get();
+                List<String> rarityWhitelist = Configuration.ADVANCED_TOOLTIP_RARITY_WHITELIST.get();
+
+                boolean restrictItems = !itemWhitelist.isEmpty();
+                boolean restrictRarities = !rarityWhitelist.isEmpty();
+
+                if (!restrictItems && !restrictRarities) {
+                        return true;
+                }
+
+                if (restrictItems && isItemInRegistryList(itemWhitelist, stack.getItem())) {
+                        return true;
+                }
+
+                if (restrictRarities) {
+                        String tooltipRarity = tooltipLines.size() > 1 ? tooltipLines.get(1).getString() : "";
+                        if (matchesRarityWhitelist(rarityWhitelist, tooltipRarity)) {
+                                return true;
+                        }
+
+                        if (matchesRarityWhitelist(rarityWhitelist, LootBeamRenderer.getRarity(stack))) {
+                                return true;
+                        }
+                }
+
+                return false;
+        }
+
+        private static boolean matchesRarityWhitelist(List<String> whitelist, String candidate) {
+                if (candidate == null || candidate.isEmpty()) {
+                        return false;
+                }
+
+                String normalized = StringUtil.stripColor(candidate).trim();
+                if (normalized.isEmpty()) {
+                        return false;
+                }
+
+                for (String entry : whitelist) {
+                        if (entry == null) {
+                                continue;
+                        }
+
+                        String trimmed = entry.trim();
+                        if (trimmed.isEmpty()) {
+                                continue;
+                        }
+
+                        if (normalized.equalsIgnoreCase(trimmed)) {
+                                return true;
+                        }
+                }
+
+                return false;
+        }
+
+        private static boolean isItemInRegistryList(List<String> registryNames, Item item) {
+                if (registryNames.isEmpty()) {
+                        return false;
+                }
 
 		for (String id : registryNames.stream().filter(s -> !s.isEmpty()).toList()) {
 			if (!id.contains(":") && ForgeRegistries.ITEMS.getKey(item).getNamespace().equals(id)) {
 				return true;
 			}
 
-			ResourceLocation itemResource = ResourceLocation.tryParse(id);
-			if (itemResource != null && ForgeRegistries.ITEMS.getValue(itemResource).asItem() == item.asItem()) {
-				return true;
-			}
-		}
+                        ResourceLocation itemResource = ResourceLocation.tryParse(id);
+                        if (itemResource != null) {
+                                Item registryItem = ForgeRegistries.ITEMS.getValue(itemResource);
+                                if (registryItem != null && registryItem.asItem() == item.asItem()) {
+                                        return true;
+                                }
+                        }
+                }
 
 		return false;
 	}

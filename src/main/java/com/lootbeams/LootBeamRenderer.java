@@ -233,7 +233,18 @@ public class LootBeamRenderer extends RenderType {
     }
 
     private static void renderNameTag(PoseStack stack, MultiBufferSource buffer, ItemEntity item, Color color) {
-        if(Configuration.ADVANCED_TOOLTIPS.get()) return;
+        List<Component> tooltip;
+        if (!TOOLTIP_CACHE.containsKey(item)) {
+            tooltip = item.getItem().getTooltipLines(null, TooltipFlag.Default.NORMAL);
+            TOOLTIP_CACHE.put(item, tooltip);
+        } else {
+            tooltip = TOOLTIP_CACHE.get(item);
+        }
+
+        if (Configuration.ADVANCED_TOOLTIPS.get() && !tooltip.isEmpty() && ClientSetup.shouldRenderAdvancedTooltip(item.getItem(), tooltip)) {
+            return;
+        }
+
         //If player is crouching or looking at the item
         if (Minecraft.getInstance().player.isCrouching() || (Configuration.RENDER_NAMETAGS_ONLOOK.get() && isLookingAt(Minecraft.getInstance().player, item, Configuration.NAMETAG_LOOK_SENSITIVITY.get()))) {
             float foregroundAlpha = Configuration.NAMETAG_TEXT_ALPHA.get().floatValue();
@@ -269,13 +280,6 @@ public class LootBeamRenderer extends RenderType {
             stack.translate(0.0D, 10, 0.0D);
             stack.scale(0.75f, 0.75f, 0.75f);
             boolean textDrawn = false;
-            List<Component> tooltip;
-            if (!TOOLTIP_CACHE.containsKey(item)) {
-                tooltip = item.getItem().getTooltipLines(null, TooltipFlag.Default.NORMAL);
-                TOOLTIP_CACHE.put(item, tooltip);
-            } else {
-                tooltip = TOOLTIP_CACHE.get(item);
-            }
             if (tooltip.size() >= 2) {
                 Component tooltipRarity = tooltip.get(1);
 
