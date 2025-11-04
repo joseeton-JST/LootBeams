@@ -6,17 +6,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.joml.Vector3d;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Mod.EventBusSubscriber
+@Mod.EventBusSubscriber(modid = LootBeams.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Configuration {
 
 	public static ForgeConfigSpec CLIENT_CONFIG;
@@ -48,8 +53,11 @@ public class Configuration {
 
 	public static ForgeConfigSpec.BooleanValue PARTICLES;
 
-	public static ForgeConfigSpec.BooleanValue ADVANCED_TOOLTIPS;
-	public static ForgeConfigSpec.BooleanValue WORLDSPACE_TOOLTIPS;
+        public static ForgeConfigSpec.BooleanValue ADVANCED_TOOLTIPS;
+        public static ForgeConfigSpec.BooleanValue RENDER_SECONDARY_RARITY_TOOLTIP;
+        public static ForgeConfigSpec.ConfigValue<List<? extends String>> ADVANCED_TOOLTIP_ITEM_WHITELIST;
+        public static ForgeConfigSpec.ConfigValue<List<? extends String>> ADVANCED_TOOLTIP_RARITY_WHITELIST;
+        public static ForgeConfigSpec.BooleanValue WORLDSPACE_TOOLTIPS;
 	public static ForgeConfigSpec.BooleanValue BORDERS;
 	public static ForgeConfigSpec.BooleanValue RENDER_NAMETAGS;
 	public static ForgeConfigSpec.BooleanValue RENDER_NAMETAGS_ONLOOK;
@@ -151,8 +159,11 @@ public class Configuration {
 		clientBuilder.pop();
 
 		clientBuilder.comment("Item nametags").push("Nametags");
-		ADVANCED_TOOLTIPS = clientBuilder.comment("If vanilla tooltips should be rendered on items in world.").define("advanced_tooltips", true);
-		WORLDSPACE_TOOLTIPS = clientBuilder.comment("If tooltips should be rendered in world.").define("worldspace_tooltips", true);
+                ADVANCED_TOOLTIPS = clientBuilder.comment("If vanilla tooltips should be rendered on items in world.").define("advanced_tooltips", true);
+                RENDER_SECONDARY_RARITY_TOOLTIP = clientBuilder.comment("If the condensed tooltip should include a second line showing the item's rarity.").define("render_secondary_rarity_tooltip", true);
+                ADVANCED_TOOLTIP_ITEM_WHITELIST = clientBuilder.comment("Restrict advanced tooltips to specific items. Accepts registry names or mod ids. Leave empty to allow all items.").defineList("advanced_tooltip_item_whitelist", () -> new ArrayList<String>(), entry -> entry instanceof String);
+                ADVANCED_TOOLTIP_RARITY_WHITELIST = clientBuilder.comment("Restrict advanced tooltips to specific rarities. Matches the text shown on the tooltip line below the item name. Leave empty to allow all rarities.").defineList("advanced_tooltip_rarity_whitelist", () -> new ArrayList<String>(), entry -> entry instanceof String);
+                WORLDSPACE_TOOLTIPS = clientBuilder.comment("If tooltips should be rendered in world.").define("worldspace_tooltips", true);
 		BORDERS = clientBuilder.comment("Render nametags as bordered. Set to false for flat nametag with background.").define("borders", true);
 		RENDER_NAMETAGS = clientBuilder.comment("If Item nametags should be rendered.").define("render_nametags", true);
 		RENDER_NAMETAGS_ONLOOK = clientBuilder.comment("If Item nametags should be rendered when looking at items.").define("render_nametags_onlook", true);
@@ -185,6 +196,48 @@ public class Configuration {
 		clientBuilder.pop();
 
 		CLIENT_CONFIG = clientBuilder.build();
+	}
+
+        @SubscribeEvent
+        public static void onConfigLoaded(ModConfigEvent.Loading event) {
+                if (event.getConfig().getSpec() != CLIENT_CONFIG) {
+                        return;
+                }
+
+                applyClientRuntimeChanges();
+        }
+
+        @SubscribeEvent
+        public static void onConfigReloaded(ModConfigEvent.Reloading event) {
+                if (event.getConfig().getSpec() != CLIENT_CONFIG) {
+                        return;
+                }
+
+                applyClientRuntimeChanges();
+        }
+
+        private static void applyClientRuntimeChanges() {
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
+                        LootBeamRenderer.refreshRenderTypes();
+                        LootBeamRenderer.TOOLTIP_CACHE.clear();
+                        ClientSetup.delayedRenders.clear();
+                });
+        }
+
+	public static List<String> getAdvancedTooltipItemWhitelistEntries() {
+		return sanitizeStringList(ADVANCED_TOOLTIP_ITEM_WHITELIST.get());
+	}
+
+	public static List<String> getAdvancedTooltipRarityWhitelistEntries() {
+		return sanitizeStringList(ADVANCED_TOOLTIP_RARITY_WHITELIST.get());
+	}
+
+	private static List<String> sanitizeStringList(List<? extends String> rawValues) {
+		return rawValues.stream()
+			.filter(Objects::nonNull)
+			.map(String::trim)
+			.filter(s -> !s.isEmpty())
+			.collect(Collectors.toList());
 	}
 
 	public static Color getColorFromItemOverrides(Item i) {

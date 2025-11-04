@@ -55,8 +55,8 @@ public class LootBeamRenderer extends RenderType {
     private static final ResourceLocation WHITE_TEXTURE = new ResourceLocation(LootBeams.MODID, "textures/entity/white.png");
 
     public static final ResourceLocation GLOW_TEXTURE = new ResourceLocation(LootBeams.MODID, "textures/entity/glow.png");
-    private static final RenderType LOOT_BEAM_RENDERTYPE = Configuration.GLOWING_BEAM.get() ? RenderType.lightning() : createRenderType();
-    private static final RenderType GLOW = Configuration.GLOWING_BEAM.get() ? RenderType.entityTranslucentEmissive(GLOW_TEXTURE) : RenderType.entityCutout(GLOW_TEXTURE);
+    private static RenderType LOOT_BEAM_RENDERTYPE = Configuration.GLOWING_BEAM.get() ? RenderType.lightning() : createLootBeamRenderType();
+    private static RenderType GLOW = createGlowRenderType();
 
     private static final Random RANDOM = new Random();
 
@@ -110,9 +110,9 @@ public class LootBeamRenderer extends RenderType {
         stack.translate(0, yOffset, 0);
         stack.translate(0, 1, 0);
         stack.mulPose(Axis.XP.rotationDegrees(180));
-        renderPart(stack, buffer.getBuffer(LOOT_BEAM_RENDERTYPE), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius, beamRadius, 0.0F, -beamRadius, 0.0F, 0.0F, -beamRadius, false);
+        renderPart(stack, buffer.getBuffer(getLootBeamRenderType()), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius, beamRadius, 0.0F, -beamRadius, 0.0F, 0.0F, -beamRadius, false);
         stack.mulPose(Axis.XP.rotationDegrees(-180));
-        renderPart(stack, buffer.getBuffer(LOOT_BEAM_RENDERTYPE), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius, beamRadius, 0.0F, -beamRadius, 0.0F, 0.0F, -beamRadius, Configuration.SOLID_BEAM.get());
+        renderPart(stack, buffer.getBuffer(getLootBeamRenderType()), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius, beamRadius, 0.0F, -beamRadius, 0.0F, 0.0F, -beamRadius, Configuration.SOLID_BEAM.get());
         stack.popPose();
 
         //Render glow around main beam
@@ -120,9 +120,9 @@ public class LootBeamRenderer extends RenderType {
         stack.translate(0, yOffset, 0);
         stack.translate(0, 1, 0);
         stack.mulPose(Axis.XP.rotationDegrees(180));
-        renderPart(stack, buffer.getBuffer(LOOT_BEAM_RENDERTYPE), R, G, B, beamAlpha * 0.4f, beamHeight, -glowRadius, -glowRadius, glowRadius, -glowRadius, -beamRadius, glowRadius, glowRadius, glowRadius, false);
+        renderPart(stack, buffer.getBuffer(getLootBeamRenderType()), R, G, B, beamAlpha * 0.4f, beamHeight, -glowRadius, -glowRadius, glowRadius, -glowRadius, -beamRadius, glowRadius, glowRadius, glowRadius, false);
         stack.mulPose(Axis.XP.rotationDegrees(-180));
-        renderPart(stack, buffer.getBuffer(LOOT_BEAM_RENDERTYPE), R, G, B, beamAlpha * 0.4f, beamHeight, -glowRadius, -glowRadius, glowRadius, -glowRadius, -beamRadius, glowRadius, glowRadius, glowRadius, Configuration.SOLID_BEAM.get());
+        renderPart(stack, buffer.getBuffer(getLootBeamRenderType()), R, G, B, beamAlpha * 0.4f, beamHeight, -glowRadius, -glowRadius, glowRadius, -glowRadius, -beamRadius, glowRadius, glowRadius, glowRadius, Configuration.SOLID_BEAM.get());
         stack.popPose();
 
         if (Configuration.WHITE_CENTER.get()) {
@@ -130,9 +130,9 @@ public class LootBeamRenderer extends RenderType {
             stack.translate(0, yOffset, 0);
             stack.translate(0, 1, 0);
             stack.mulPose(Axis.XP.rotationDegrees(180));
-            renderPart(stack, buffer.getBuffer(LOOT_BEAM_RENDERTYPE), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius * 0.4f, beamRadius * 0.4f, 0.0F, -beamRadius * 0.4f, 0.0F, 0.0F, -beamRadius * 0.4f, false);
+            renderPart(stack, buffer.getBuffer(getLootBeamRenderType()), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius * 0.4f, beamRadius * 0.4f, 0.0F, -beamRadius * 0.4f, 0.0F, 0.0F, -beamRadius * 0.4f, false);
             stack.mulPose(Axis.XP.rotationDegrees(-180));
-            renderPart(stack, buffer.getBuffer(LOOT_BEAM_RENDERTYPE), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius * 0.4f, beamRadius * 0.4f, 0.0F, -beamRadius * 0.4f, 0.0F, 0.0F, -beamRadius * 0.4f, Configuration.SOLID_BEAM.get());
+            renderPart(stack, buffer.getBuffer(getLootBeamRenderType()), R, G, B, beamAlpha, beamHeight, 0.0F, beamRadius * 0.4f, beamRadius * 0.4f, 0.0F, -beamRadius * 0.4f, 0.0F, 0.0F, -beamRadius * 0.4f, Configuration.SOLID_BEAM.get());
             stack.popPose();
         }
 
@@ -145,7 +145,7 @@ public class LootBeamRenderer extends RenderType {
                 radius *= ((Math.abs(Math.cos((entityTime + pticks) / 10f) * 0.45f)) * 0.75f + 0.75f);
             }
 
-            renderGlow(stack, buffer.getBuffer(GLOW), R, G, B, beamAlpha * 0.4f, radius);
+            renderGlow(stack, buffer.getBuffer(getGlowRenderType()), R, G, B, beamAlpha * 0.4f, radius);
             stack.popPose();
         }
         stack.popPose();
@@ -233,9 +233,22 @@ public class LootBeamRenderer extends RenderType {
     }
 
     private static void renderNameTag(PoseStack stack, MultiBufferSource buffer, ItemEntity item, Color color) {
-        if(Configuration.ADVANCED_TOOLTIPS.get()) return;
+        List<Component> tooltip;
+        if (!TOOLTIP_CACHE.containsKey(item)) {
+            tooltip = item.getItem().getTooltipLines(null, TooltipFlag.Default.NORMAL);
+            TOOLTIP_CACHE.put(item, tooltip);
+        } else {
+            tooltip = TOOLTIP_CACHE.get(item);
+        }
+
+        ClientSetup.TooltipRenderState tooltipState = ClientSetup.getTooltipRenderState(item.getItem(), tooltip);
+        LocalPlayer localPlayer = Minecraft.getInstance().player;
+        if (tooltipState.shouldSuppressNametag(localPlayer)) {
+            return;
+        }
+
         //If player is crouching or looking at the item
-        if (Minecraft.getInstance().player.isCrouching() || (Configuration.RENDER_NAMETAGS_ONLOOK.get() && isLookingAt(Minecraft.getInstance().player, item, Configuration.NAMETAG_LOOK_SENSITIVITY.get()))) {
+        if (localPlayer != null && (localPlayer.isCrouching() || (Configuration.RENDER_NAMETAGS_ONLOOK.get() && isLookingAt(localPlayer, item, Configuration.NAMETAG_LOOK_SENSITIVITY.get())))) {
             float foregroundAlpha = Configuration.NAMETAG_TEXT_ALPHA.get().floatValue();
             float backgroundAlpha = Configuration.NAMETAG_BACKGROUND_ALPHA.get().floatValue();
             double yOffset = Configuration.NAMETAG_Y_OFFSET.get();
@@ -245,7 +258,7 @@ public class LootBeamRenderer extends RenderType {
             stack.pushPose();
 
             //Render nametags at heights based on player distance
-            stack.translate(0.0D, Math.min(1D, Minecraft.getInstance().player.distanceToSqr(item) * 0.025D) + yOffset, 0.0D);
+            stack.translate(0.0D, Math.min(1D, localPlayer.distanceToSqr(item) * 0.025D) + yOffset, 0.0D);
             stack.mulPose(Minecraft.getInstance().getEntityRenderDispatcher().cameraOrientation());
 
             float nametagScale = Configuration.NAMETAG_SCALE.get().floatValue();
@@ -269,13 +282,6 @@ public class LootBeamRenderer extends RenderType {
             stack.translate(0.0D, 10, 0.0D);
             stack.scale(0.75f, 0.75f, 0.75f);
             boolean textDrawn = false;
-            List<Component> tooltip;
-            if (!TOOLTIP_CACHE.containsKey(item)) {
-                tooltip = item.getItem().getTooltipLines(null, TooltipFlag.Default.NORMAL);
-                TOOLTIP_CACHE.put(item, tooltip);
-            } else {
-                tooltip = TOOLTIP_CACHE.get(item);
-            }
             if (tooltip.size() >= 2) {
                 Component tooltipRarity = tooltip.get(1);
 
@@ -452,10 +458,27 @@ public class LootBeamRenderer extends RenderType {
         builder.vertex(pose, x, y, z).color(red, green, blue, alpha).uv(texu, texv).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(15728880).normal(normal, 0.0F, 1.0F, 0.0F).endVertex();
     }
 
-    private static RenderType createRenderType() {
+    static void refreshRenderTypes() {
+        LOOT_BEAM_RENDERTYPE = Configuration.GLOWING_BEAM.get() ? RenderType.lightning() : createLootBeamRenderType();
+        GLOW = createGlowRenderType();
+    }
+
+    private static RenderType getLootBeamRenderType() {
+        return LOOT_BEAM_RENDERTYPE;
+    }
+
+    private static RenderType getGlowRenderType() {
+        return GLOW;
+    }
+
+    private static RenderType createLootBeamRenderType() {
         ResourceLocation texture = !Configuration.SOLID_BEAM.get() ? LOOT_BEAM_TEXTURE : WHITE_TEXTURE;
         RenderType.CompositeState state = RenderType.CompositeState.builder().setShaderState(RENDERTYPE_BEACON_BEAM_SHADER).setTextureState(new RenderStateShard.TextureStateShard(texture, false, false)).setTransparencyState(TRANSLUCENT_TRANSPARENCY).setWriteMaskState(COLOR_WRITE).createCompositeState(false);
         return RenderType.create("loot_beam", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 256, false, true, state);
+    }
+
+    private static RenderType createGlowRenderType() {
+        return Configuration.GLOWING_BEAM.get() ? RenderType.entityTranslucentEmissive(GLOW_TEXTURE) : RenderType.entityCutout(GLOW_TEXTURE);
     }
 
     /**
