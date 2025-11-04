@@ -94,6 +94,9 @@ public class ClientSetup {
                                                         return;
                                                 }
                                                 TooltipRenderState tooltipState = getTooltipRenderState(itemEntity.getItem(), tooltipLines);
+                                                if (!tooltipState.whitelistAllowed()) {
+                                                        return;
+                                                }
                                                 boolean shouldRenderAdvancedTooltip = tooltipState.shouldRenderAdvancedTooltip(player);
                                                 List<Component> condensedTooltip = new ArrayList<>();
                                                 condensedTooltip.add(tooltipLines.get(0));
@@ -311,10 +314,10 @@ public class ClientSetup {
                 boolean advancedEligible = Configuration.ADVANCED_TOOLTIPS.get() && whitelistAllowed;
                 boolean renderCondensedRarity = whitelistAllowed && Configuration.RENDER_SECONDARY_RARITY_TOOLTIP.get();
 
-                return new TooltipRenderState(advancedEligible, renderCondensedRarity);
+                return new TooltipRenderState(whitelistAllowed, advancedEligible, renderCondensedRarity);
         }
 
-        public record TooltipRenderState(boolean advancedEligible, boolean renderCondensedRarity) {
+        public record TooltipRenderState(boolean whitelistAllowed, boolean advancedEligible, boolean renderCondensedRarity) {
                 public boolean shouldRenderAdvancedTooltip(Player player) {
                         if (!advancedEligible) {
                                 return false;
