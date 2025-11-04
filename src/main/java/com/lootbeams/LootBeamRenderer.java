@@ -242,12 +242,13 @@ public class LootBeamRenderer extends RenderType {
         }
 
         ClientSetup.TooltipRenderState tooltipState = ClientSetup.getTooltipRenderState(item.getItem(), tooltip);
-        if (tooltipState.suppressNametag()) {
+        LocalPlayer localPlayer = Minecraft.getInstance().player;
+        if (tooltipState.shouldSuppressNametag(localPlayer)) {
             return;
         }
 
         //If player is crouching or looking at the item
-        if (Minecraft.getInstance().player.isCrouching() || (Configuration.RENDER_NAMETAGS_ONLOOK.get() && isLookingAt(Minecraft.getInstance().player, item, Configuration.NAMETAG_LOOK_SENSITIVITY.get()))) {
+        if (localPlayer != null && (localPlayer.isCrouching() || (Configuration.RENDER_NAMETAGS_ONLOOK.get() && isLookingAt(localPlayer, item, Configuration.NAMETAG_LOOK_SENSITIVITY.get())))) {
             float foregroundAlpha = Configuration.NAMETAG_TEXT_ALPHA.get().floatValue();
             float backgroundAlpha = Configuration.NAMETAG_BACKGROUND_ALPHA.get().floatValue();
             double yOffset = Configuration.NAMETAG_Y_OFFSET.get();
@@ -257,7 +258,7 @@ public class LootBeamRenderer extends RenderType {
             stack.pushPose();
 
             //Render nametags at heights based on player distance
-            stack.translate(0.0D, Math.min(1D, Minecraft.getInstance().player.distanceToSqr(item) * 0.025D) + yOffset, 0.0D);
+            stack.translate(0.0D, Math.min(1D, localPlayer.distanceToSqr(item) * 0.025D) + yOffset, 0.0D);
             stack.mulPose(Minecraft.getInstance().getEntityRenderDispatcher().cameraOrientation());
 
             float nametagScale = Configuration.NAMETAG_SCALE.get().floatValue();

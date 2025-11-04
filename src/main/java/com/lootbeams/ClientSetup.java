@@ -94,7 +94,7 @@ public class ClientSetup {
                                                         return;
                                                 }
                                                 TooltipRenderState tooltipState = getTooltipRenderState(itemEntity.getItem(), tooltipLines);
-                                                boolean advancedTooltipAllowed = tooltipState.allowAdvancedTooltip();
+                                                boolean shouldRenderAdvancedTooltip = tooltipState.shouldRenderAdvancedTooltip(player);
                                                 List<Component> condensedTooltip = new ArrayList<>();
                                                 condensedTooltip.add(tooltipLines.get(0));
                                                 if(tooltipState.renderCondensedRarity()) {
@@ -105,7 +105,7 @@ public class ClientSetup {
                                                         condensedTooltip.add(rarityComponent);
                                                 }
                                                 List<Component> singleLineTooltip = List.of(condensedTooltip.get(0));
-                                                boolean showAdvancedTooltip = advancedTooltipAllowed && (!Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() || player.isCrouching());
+                                                boolean showAdvancedTooltip = shouldRenderAdvancedTooltip;
                                                 boolean useCombinedCondensed = !showAdvancedTooltip && tooltipState.renderCondensedRarity() && Configuration.COMBINE_NAME_AND_RARITY.get() && condensedTooltip.size() > 1;
                                                 List<Component> displayedLines = showAdvancedTooltip ? tooltipLines : (useCombinedCondensed ? condensedTooltip : singleLineTooltip);
                                                 if(Configuration.WORLDSPACE_TOOLTIPS.get()){
@@ -308,14 +308,29 @@ public class ClientSetup {
                 }
 
                 boolean whitelistAllowed = itemAllowed && rarityAllowed;
-                boolean allowAdvancedTooltip = Configuration.ADVANCED_TOOLTIPS.get() && whitelistAllowed;
+                boolean advancedEligible = Configuration.ADVANCED_TOOLTIPS.get() && whitelistAllowed;
                 boolean renderCondensedRarity = whitelistAllowed && Configuration.RENDER_SECONDARY_RARITY_TOOLTIP.get();
-                boolean suppressNametag = Configuration.ADVANCED_TOOLTIPS.get();
 
-                return new TooltipRenderState(allowAdvancedTooltip, renderCondensedRarity, suppressNametag);
+                return new TooltipRenderState(advancedEligible, renderCondensedRarity);
         }
 
-        public record TooltipRenderState(boolean allowAdvancedTooltip, boolean renderCondensedRarity, boolean suppressNametag) {}
+        public record TooltipRenderState(boolean advancedEligible, boolean renderCondensedRarity) {
+                public boolean shouldRenderAdvancedTooltip(Player player) {
+                        if (!advancedEligible) {
+                                return false;
+                        }
+
+                        if (!Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get()) {
+                                return true;
+                        }
+
+                        return player != null && player.isCrouching();
+                }
+
+                public boolean shouldSuppressNametag(Player player) {
+                        return shouldRenderAdvancedTooltip(player);
+                }
+        }
 
         private static boolean matchesRarityWhitelist(List<String> whitelist, String candidate) {
                 if (candidate == null || candidate.isEmpty()) {
