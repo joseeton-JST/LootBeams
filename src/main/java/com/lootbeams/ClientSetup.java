@@ -12,6 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.sounds.WeighedSoundEvents;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
@@ -34,6 +35,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.tags.TagKey;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -53,6 +55,7 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -298,19 +301,19 @@ public class ClientSetup {
                         return true;
                 }
 
-                boolean itemAllowed = !restrictItems || isItemInRegistryList(itemWhitelist, stack.getItem());
-                boolean rarityAllowed = true;
+                if (restrictItems && !isItemInRegistryList(itemWhitelist, stack.getItem())) {
+                        return false;
+                }
 
                 if (restrictRarities) {
-                        rarityAllowed = false;
                         String tooltipRarity = tooltipLines.size() > 1 ? tooltipLines.get(1).getString() : "";
-                        if (matchesRarityWhitelist(rarityWhitelist, tooltipRarity)
-                                        || matchesRarityWhitelist(rarityWhitelist, LootBeamRenderer.getRarity(stack))) {
-                                rarityAllowed = true;
+                        if (!matchesRarityWhitelist(rarityWhitelist, tooltipRarity)
+                                        && !matchesRarityWhitelist(rarityWhitelist, LootBeamRenderer.getRarity(stack))) {
+                                return false;
                         }
                 }
 
-                return itemAllowed && rarityAllowed;
+                return true;
         }
 
         private static boolean matchesRarityWhitelist(List<String> whitelist, String candidate) {
@@ -323,6 +326,8 @@ public class ClientSetup {
                         return false;
                 }
 
+                String normalizedLower = normalized.toLowerCase(Locale.ROOT);
+
                 for (String entry : whitelist) {
                         if (entry == null) {
                                 continue;
@@ -333,7 +338,7 @@ public class ClientSetup {
                                 continue;
                         }
 
-                        if (normalized.equalsIgnoreCase(trimmed)) {
+                        if (normalizedLower.equals(trimmed.toLowerCase(Locale.ROOT))) {
                                 return true;
                         }
                 }
@@ -351,16 +356,39 @@ public class ClientSetup {
                         return false;
                 }
 
-                for (String id : registryNames.stream().filter(s -> !s.isEmpty()).toList()) {
-                        if (!id.contains(":") && itemKey.getNamespace().equals(id)) {
-                                return true;
+                for (String rawEntry : registryNames) {
+                        if (rawEntry == null) {
+                                continue;
                         }
 
-                        ResourceLocation itemResource = ResourceLocation.tryParse(id);
-                        if (itemResource != null) {
-                                if (itemResource.equals(itemKey)) {
+                        String trimmed = rawEntry.trim();
+                        if (trimmed.isEmpty()) {
+                                continue;
+                        }
+
+                        String normalized = trimmed.toLowerCase(Locale.ROOT);
+
+                        if (normalized.startsWith("#")) {
+                                ResourceLocation tagLocation = ResourceLocation.tryParse(normalized.substring(1));
+                                if (tagLocation != null && ForgeRegistries.ITEMS.tags() != null) {
+                                        TagKey<Item> tagKey = TagKey.create(BuiltInRegistries.ITEM.key(), tagLocation);
+                                        if (ForgeRegistries.ITEMS.tags().getTag(tagKey).contains(item)) {
+                                                return true;
+                                        }
+                                }
+                                continue;
+                        }
+
+                        if (!normalized.contains(":")) {
+                                if (itemKey.getNamespace().equalsIgnoreCase(normalized)) {
                                         return true;
                                 }
+                                continue;
+                        }
+
+                        ResourceLocation itemResource = ResourceLocation.tryParse(normalized);
+                        if (itemResource != null && itemResource.equals(itemKey)) {
+                                return true;
                         }
                 }
 
