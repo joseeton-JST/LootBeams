@@ -93,10 +93,11 @@ public class ClientSetup {
                                                 if(tooltipLines.isEmpty()) {
                                                         return;
                                                 }
-                                                boolean advancedTooltipAllowed = shouldRenderAdvancedTooltip(itemEntity.getItem(), tooltipLines);
+                                                TooltipRenderState tooltipState = getTooltipRenderState(itemEntity.getItem(), tooltipLines);
+                                                boolean advancedTooltipAllowed = tooltipState.allowAdvancedTooltip();
                                                 List<Component> condensedTooltip = new ArrayList<>();
                                                 condensedTooltip.add(tooltipLines.get(0));
-                                                if(advancedTooltipAllowed && Configuration.RENDER_SECONDARY_RARITY_TOOLTIP.get()) {
+                                                if(tooltipState.renderCondensedRarity()) {
                                                         Component rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(itemEntity.getItem().getDisplayName().getStyle());
                                                         if(ModList.get().isLoaded("apotheosis") && ApotheosisCompat.isApotheosisItem(itemEntity.getItem())) {
                                                                 rarityComponent = Component.literal(LootBeamRenderer.getRarity(itemEntity.getItem())).withStyle(s -> s.withColor(ApotheosisCompat.getRarityColor(itemEntity.getItem())));
@@ -105,7 +106,7 @@ public class ClientSetup {
                                                 }
                                                 List<Component> singleLineTooltip = List.of(condensedTooltip.get(0));
                                                 boolean showAdvancedTooltip = advancedTooltipAllowed && (!Configuration.SCREEN_TOOLTIPS_REQUIRE_CROUCH.get() || player.isCrouching());
-                                                boolean useCombinedCondensed = !showAdvancedTooltip && advancedTooltipAllowed && Configuration.COMBINE_NAME_AND_RARITY.get() && condensedTooltip.size() > 1;
+                                                boolean useCombinedCondensed = !showAdvancedTooltip && tooltipState.renderCondensedRarity() && Configuration.COMBINE_NAME_AND_RARITY.get() && condensedTooltip.size() > 1;
                                                 List<Component> displayedLines = showAdvancedTooltip ? tooltipLines : (useCombinedCondensed ? condensedTooltip : singleLineTooltip);
                                                 if(Configuration.WORLDSPACE_TOOLTIPS.get()){
                                                         Vec3 tooltipWorldPos = itemEntity.position().add(
@@ -290,31 +291,31 @@ public class ClientSetup {
                 return item instanceof TieredItem || item instanceof ArmorItem || item instanceof ShieldItem || item instanceof BowItem || item instanceof CrossbowItem;
         }
 
-        public static boolean shouldRenderAdvancedTooltip(ItemStack stack, List<Component> tooltipLines) {
+        public static TooltipRenderState getTooltipRenderState(ItemStack stack, List<Component> tooltipLines) {
                 List<String> itemWhitelist = Configuration.getAdvancedTooltipItemWhitelistEntries();
                 List<String> rarityWhitelist = Configuration.getAdvancedTooltipRarityWhitelistEntries();
 
                 boolean restrictItems = !itemWhitelist.isEmpty();
                 boolean restrictRarities = !rarityWhitelist.isEmpty();
 
-                if (!restrictItems && !restrictRarities) {
-                        return true;
-                }
-
-                if (restrictItems && !isItemInRegistryList(itemWhitelist, stack.getItem())) {
-                        return false;
-                }
+                boolean itemAllowed = !restrictItems || isItemInRegistryList(itemWhitelist, stack.getItem());
+                boolean rarityAllowed = true;
 
                 if (restrictRarities) {
                         String tooltipRarity = tooltipLines.size() > 1 ? tooltipLines.get(1).getString() : "";
-                        if (!matchesRarityWhitelist(rarityWhitelist, tooltipRarity)
-                                        && !matchesRarityWhitelist(rarityWhitelist, LootBeamRenderer.getRarity(stack))) {
-                                return false;
-                        }
+                        rarityAllowed = matchesRarityWhitelist(rarityWhitelist, tooltipRarity)
+                                        || matchesRarityWhitelist(rarityWhitelist, LootBeamRenderer.getRarity(stack));
                 }
 
-                return true;
+                boolean whitelistAllowed = itemAllowed && rarityAllowed;
+                boolean allowAdvancedTooltip = Configuration.ADVANCED_TOOLTIPS.get() && whitelistAllowed;
+                boolean renderCondensedRarity = whitelistAllowed && Configuration.RENDER_SECONDARY_RARITY_TOOLTIP.get();
+                boolean suppressNametag = Configuration.ADVANCED_TOOLTIPS.get();
+
+                return new TooltipRenderState(allowAdvancedTooltip, renderCondensedRarity, suppressNametag);
         }
+
+        public record TooltipRenderState(boolean allowAdvancedTooltip, boolean renderCondensedRarity, boolean suppressNametag) {}
 
         private static boolean matchesRarityWhitelist(List<String> whitelist, String candidate) {
                 if (candidate == null || candidate.isEmpty()) {

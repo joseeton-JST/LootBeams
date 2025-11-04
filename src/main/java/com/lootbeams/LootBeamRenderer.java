@@ -241,7 +241,8 @@ public class LootBeamRenderer extends RenderType {
             tooltip = TOOLTIP_CACHE.get(item);
         }
 
-        if (Configuration.ADVANCED_TOOLTIPS.get() && !tooltip.isEmpty() && ClientSetup.shouldRenderAdvancedTooltip(item.getItem(), tooltip)) {
+        ClientSetup.TooltipRenderState tooltipState = ClientSetup.getTooltipRenderState(item.getItem(), tooltip);
+        if (tooltipState.suppressNametag()) {
             return;
         }
 
